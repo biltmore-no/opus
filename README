@@ -6,5 +6,5 @@ To get started:
 
 Opus uses Requests which is an simple HTTP library for Python to interface with MiraiEx: https://requests.readthedocs.io/en/master/
 
-Visit https://www.biltmore.no/miraiex/ to register yourself at MiraiEx or 
+Visit https://www.biltmore.no/miraiex/ for being redirected to open an account with MiraiEx or 
 donate BTC to address : 3DsMZSbD286Fj1rQThPBjPXxk4dkQtVHGe to support the maintainer of this robot
