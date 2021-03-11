@@ -2,7 +2,7 @@ To get started:
 
 1) Copy settings.py.example to settings.py
 2) Edit settings.py to add your MiraiEx Client ID and Secret Key and change bot parameters
-3) Run it: python opus.py
+3) Run it: python3 opus.py
 
 Opus uses Requests which is an elegant and simple HTTP library for Python to interface with MiraiEx:
 https://requests.readthedocs.io/en/master/
