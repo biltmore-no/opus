@@ -1,10 +1,28 @@
-import mtgox
+import hashlib
+import hmac
+import json
+import requests
+
 from time import sleep
 import sys
-from urllib2 import URLError
 from datetime import datetime
 
 import settings
+
+
+# API info
+API_HOST = 'https://api.miraiex.com'
+API_SECRET = b(settings.API_SECRET)
+API_CLIENT_ID = settings.API_CLIENT_ID
+
+def json_encode(data):
+        return json.dumps(data, separators=(',', ':'), sort_keys=True)
+
+def sign(data):
+        j = json_encode(data)
+        #print('Signing payload: ' + j)
+        h = hmac.new(API_SECRET, msg=j.encode(), digestmod=hashlib.sha256)
+        return h.hexdigest()
 
 
 def timestamp_string():
@@ -13,39 +31,92 @@ def timestamp_string():
 class ExchangeInterface:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        self.mtgox = mtgox.MtGox()
-        self.USD_DECIMAL_PLACES = 5
+        self.USD_DECIMAL_PLACES = 2
 
     def authenticate(self, login, password):
         if not self.dry_run:
-            self.mtgox.authenticate(login, password)
-
+          # self.mtgox.authenticate(login, password)
+          print("MiraiEX trading bot")
     def cancel_all_orders(self):
         if self.dry_run:
             return
 
-        trade_data = self.mtgox.open_orders(); sleep(1)
-        orders = trade_data['orders']
+        #trade_data = self.mtgox.open_orders(); sleep(1)
+	# check server time
+        response = requests.get(API_HOST + '/time')
+        a = response.json()
+        #print(a['time'])
+        ts = str(a['time'])
+        # check balances
+        data = {
+        'timestamp': (ts),
+        'validity': '2000'
+	}
 
+        signature = sign(data)
+
+        header = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'miraiex-user-clientid': API_CLIENT_ID,
+                'miraiex-user-signature': signature,
+        }
+
+        response = requests.get(API_HOST + '/v2/orders/BTCNOK?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+        #print('Cancel_All_Orders: ' + response.text)
+        trade_data=response.json()
+
+        #orders = trade_data['orders']
+        orders = response.json()
         for order in orders:
-            typestring = "sell" if order['type'] == 1 else "buy"
-            print timestamp_string(), "Cancelling:", typestring, order['amount'], "@", order['price']
-            while True:
-                try:
-                    self.mtgox.cancel(order['oid'], order['type']); sleep(1)
-                except URLError as e:
-                    print e.reason
-                    sleep(10)
-                except ValueError as e:
-                    print e
-                    sleep(10)
-                else:
-                    break
+            typestring = "sell" if order['type'] == 'ask' else "buy"
+            print(timestamp_string(), "Cancelling:", typestring, order['amount'], "@", order['price'])
+            #while True:
+            #    try:
+            #        self.mtgox.cancel(order['oid'], order['type']); sleep(1)
+            #    except URLError as e:
+            #        print(e.reason)
+            #        sleep(10)
+            #    except ValueError as e:
+            #        print(e)
+            #        sleep(10)
+            #    else:
+            #        break
+                # check server time
+        response = requests.get(API_HOST + '/time')
+        a = response.json()
+        #print(a['time'])
+        ts = str(a['time'])
+        # check balances
+        data = {
+        'timestamp': (ts),
+        'validity': '2000'
+        }
+
+        signature = sign(data)
+
+        header = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'miraiex-user-clientid': API_CLIENT_ID,
+                'miraiex-user-signature': signature,
+        }
+
+        response = requests.delete(API_HOST + '/v2/orders/BTCNOK?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+        #print('DELETEOrders: ' + response.text)
+        trade_data=response.text
 
     def get_ticker(self):
-        ticker = self.mtgox.ticker_data()["ticker"]
+        #ticker = self.mtgox.ticker_data()["ticker"]
+	#get last
+        response = requests.get(API_HOST + '/v2/markets/BTCNOK')
+        a = response.json()
 
-        return {"last": float(ticker["last"]), "buy": float(ticker["buy"]), "sell": float(ticker["sell"])}
+	#get buy/sell
+        response = requests.get(API_HOST + '/v2/markets/BTCNOK/ticker')
+        b = response.json()
+
+        return {"last": float(a["last"]), "buy": float(b["bid"]), "sell": float(b["ask"])}
 
     def get_trade_data(self):
         if self.dry_run:
@@ -55,41 +126,195 @@ class ExchangeInterface:
         else:
             while True:
                 try:
-                    trade_data = self.mtgox.open_orders(); sleep(1)
+
+                    # check server time
+                    response = requests.get(API_HOST + '/time')
+                    a = response.json()
+                    ts = str(a['time'])
+
+                    data = {
+                            'timestamp': str(ts),
+                            'validity': '2000'
+                           }
+
+                    signature = sign(data)
+
+                    header = {
+                               'Accept': 'application/json',
+                               'Content-Type': 'application/json',
+                               'miraiex-user-clientid': API_CLIENT_ID,
+                               'miraiex-user-signature': signature,
+                             }
+
+
+                    #print('Payload with signature: ' + json_encode(data))
+                    response = requests.get(API_HOST + '/v2/balances?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+                    #print(header, json_encode(data))
+                    #print('Balances: ' + response.text)
+                    trade_data=response.json()
+                    sleep(1)
+                    #trade_data = self.mtgox.open_orders(); sleep(1)
                 except URLError as e:
-                    print e.reason
+                    print(e.reason)
                     sleep(10)
                 except ValueError as e:
-                    print e
+                    print(e)
                     sleep(10)
                 else:
                     break
+            jsonObj = response.json()
+            #print(jsonObj[0]["currency"])
+            length = len(jsonObj)
+            #print(length)
+            for x in range(length):
+              #print(x)
+              if jsonObj[x]["currency"] == "BTC":
+                 coins=jsonObj[x]["balance"]
+                 #print(coins) 
+                 break
+            for x in range(length):
+              if jsonObj[x]["currency"] == "NOK":
+                 cash=jsonObj[x]["balance"]
+                 #print(cash)
+                 break
 
-            btc = float(trade_data["btcs"])
-            usd = float(trade_data["usds"])
+            btc = float(coins)
+            usd = float(cash)
             orders = []
+            # check server time
+            response = requests.get(API_HOST + '/time')
+            a = response.json()
+            #print(a['time'])
+            ts = str(a['time'])
+            # check balances
+            data = {
+            'timestamp': (ts),
+            'validity': '2000'
+            }
 
-            for o in trade_data["orders"]:
-                order = {"id": o["oid"], "price": float(o["price"]), "amount": float(o["amount"])}
-                order["type"] = "sell" if o["type"] == 1 else "buy"
-                orders.append(order)
+            signature = sign(data)
 
-        return {"btc": btc, "usd": usd, "orders": orders}
+            header = {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json',
+                      'miraiex-user-clientid': API_CLIENT_ID,
+                      'miraiex-user-signature': signature,
+             }
+
+            response = requests.get(API_HOST + '/v2/orders/BTCNOK?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+            #print('Balance Orders: ' + response.text)
+            #trade_data=response.json()
+
+            #orders = trade_data['orders']
+            orders = response.json()
+            #orders = json.loads(response.text)
+            #orders = response.text
+            #print(orders)
+            orders2=[]            
+
+            if orders:
+               #print(len(orders))
+               for x in range(len(orders)):
+                    #print(x)
+                    order = {"id": orders[x]["id"], "price": float(orders[x]["price"]), "amount": float(orders[x]["amount"])}
+                    order["type"] = "sell" if orders[x]["type"] == 'ask'  else "buy"
+                    orders2.append(order)
+            #print(orders)
+
+               #for o in orders:
+               #    order = {"id": o["id"], "price": float(o["price"]), "amount": float(o["amount"])}
+               #    order["type"] = "sell" if o["type"] == 'ask'  else "buy"
+               #    orders.append(order)
+        return {"btc": btc, "usd": usd, "orders": orders2}
 
     def place_order(self, price, amount, order_type):
         if settings.DRY_RUN:
-            print timestamp_string(), order_type.capitalize() + ":", amount, "@", price
+            print(timestamp_string(), order_type.capitalize() + ":", amount, "@", price)
             return None
 
         if order_type == "buy":
-            order_id = self.mtgox.buy(amount, price)["oid"]
+            #order_id = self.mtgox.buy(amount, price)["oid"]
+            #print("buying")
+            # check server time
+            response = requests.get(API_HOST + '/time')
+
+            a = response.json()
+            #print(a['time'])
+
+            ts = int(a['time'])
+            # place buy
+            data = {
+                    'timestamp': str(ts),
+                    'validity': '2000',
+                    'market': 'BTCNOK',
+                    'type': 'bid',
+                    'price': str(price),
+                    'amount': str(amount)
+
+            }
+
+            signature = sign(data)
+
+            header = {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json',
+                      'miraiex-user-clientid': API_CLIENT_ID,
+                      'miraiex-user-signature': signature,
+            }
+
+
+
+            response = requests.post(API_HOST + '/v2/orders?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+            #print(header, json_encode(data))
+            print('order ID: ' + response.text)
+            
+            tmp=response.json()
+            order_id = (tmp['id'])
         elif order_type == "sell":
-            order_id = self.mtgox.sell(amount, price)["oid"]
+            #order_id = self.mtgox.sell(amount, price)["oid"]
+            #print("selling")
+            # check server time
+            response = requests.get(API_HOST + '/time')
+
+            a = response.json()
+            #print(a['time'])
+
+            ts = int(a['time'])
+            # place buy
+            data = {
+                    'timestamp': str(ts),
+                    'validity': '2000',
+                    'market': 'BTCNOK',
+                    'type': 'ask',
+                    'price': str(price),
+                    'amount': str(amount)
+
+            }
+
+            signature = sign(data)
+
+            header = {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json',
+                      'miraiex-user-clientid': API_CLIENT_ID,
+                      'miraiex-user-signature': signature,
+            }
+
+
+
+            response = requests.post(API_HOST + '/v2/orders?timestamp='+str(ts)+'&validity=2000', headers=header, data=json_encode(data))
+            #print(header, json_encode(data))
+            print('order ID: ' + response.text)
+
+            tmp2=response.json()
+            order_id = (tmp2['id'])
+
+
         else:
-            print "Invalid order type"
+            print("Invalid order type")
             exit()
 
-        print timestamp_string(), order_type.capitalize() + ":", amount, "@", price, "id:", order_id
+        print(timestamp_string(), order_type.capitalize() + ":", amount, "@", price, "id:", order_id)
 
         return order_id
 
@@ -109,13 +334,13 @@ class OrderManager:
         trade_data = self.exchange.get_trade_data()
         self.start_btc = trade_data["btc"]
         self.start_usd = trade_data["usd"]
-        print timestamp_string(), "BTC:", self.start_btc, "  USD:", self.start_usd
+        print(timestamp_string(), "BTC:", self.start_btc, "  NOK:", self.start_usd)
 
         # Sanity check:
         if self.get_position(-1) >= ticker["sell"] or self.get_position(1) <= ticker["buy"]:
-            print self.start_position
-            print self.get_position(-1), ticker["sell"], self.get_position(1), ticker["buy"]
-            print "Sanity check failed, exchange data is screwy"
+            print(self.start_position)
+            print(self.get_position(-1), ticker["sell"], self.get_position(1), ticker["buy"])
+            print("Sanity check failed, exchange data is screwy")
             exit()
 
         for i in range(1, settings.ORDER_PAIRS + 1):
@@ -137,11 +362,12 @@ class OrderManager:
         trade_data = self.exchange.get_trade_data()
         order_ids = [o["id"] for o in trade_data["orders"]]
         old_orders = self.orders.copy()
-        print_status = False
+        print(old_orders)
+        print_status = True
 
-        for index, order in old_orders.iteritems():
+        for index, order in old_orders.items():
             if order["id"] not in order_ids:
-                print "Order filled, id:", order["id"]
+                print("Order filled, id:", order["id"])
                 del self.orders[index]
                 if order["type"] == "buy":
                     self.place_order(index + 1, "sell")
@@ -152,7 +378,7 @@ class OrderManager:
         num_buys = 0
         num_sells = 0
 
-        for order in self.orders.itervalues():
+        for order in self.orders.values():
             if order["type"] == "buy":
                 num_buys += 1
             else:
@@ -177,7 +403,7 @@ class OrderManager:
         if print_status:
             btc = trade_data["btc"]
             usd = trade_data["usd"]
-            print "Profit:", btc - self.start_btc, "BTC,", usd - self.start_usd, "USD   Run Time:", datetime.now() - self.start_time
+            print("Profit:", btc - self.start_btc, "BTC,", usd - self.start_usd, "NOK   Run Time:", datetime.now() - self.start_time)
 
 
     def run_loop(self):
