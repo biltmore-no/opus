@@ -2,7 +2,7 @@
 API_CLIENT_ID = 'rtdq2lh7jhh8szbo0n5y8jbgbl84a747r73zyawni3mgsnujg57vuo1vfgqfd0ca'
 API_SECRET = 'wztpxverlwwayk6qw4iclljll1rnlry7winzjrhaujqyu2ewx3e8enj5vgi6xn3j'
 
-#TMP
+#TMP (DONT TOUCH LOGIN AND PASSWORD!)
 LOGIN = 'TMP'
 PASSWORD = 'TMP'
 
