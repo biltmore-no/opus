@@ -4,7 +4,7 @@ To get started:
 2) Edit settings.py to add your MiraiEx Client ID and Secret Key and change bot parameters
 3) Run it: python3 opusbot.py
 
-Opus uses Requests which is an simple HTTP library for Python to interface with MiraiEx: https://requests.readthedocs.io/en/master/
+Opus uses Requests which is a simple HTTP library for Python to interface with MiraiEx: https://requests.readthedocs.io/en/master/
 
 Visit https://www.biltmore.no/miraiex/ to get redirected to open an account with MiraiEx or 
 donate BTC to address : 3DsMZSbD286Fj1rQThPBjPXxk4dkQtVHGe to support the maintainer of this robot
