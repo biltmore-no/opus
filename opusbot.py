@@ -12,7 +12,7 @@ import settings
 
 # API info
 API_HOST = 'https://api.miraiex.com'
-API_SECRET = b(settings.API_SECRET)
+API_SECRET = str.encode(settings.API_SECRET)
 API_CLIENT_ID = settings.API_CLIENT_ID
 
 def json_encode(data):
@@ -362,7 +362,7 @@ class OrderManager:
         trade_data = self.exchange.get_trade_data()
         order_ids = [o["id"] for o in trade_data["orders"]]
         old_orders = self.orders.copy()
-        print(old_orders)
+        #print(old_orders)
         print_status = True
 
         for index, order in old_orders.items():

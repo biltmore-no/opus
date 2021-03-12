@@ -2,6 +2,10 @@
 API_CLIENT_ID = 'rtdq2lh7jhh8szbo0n5y8jbgbl84a747r73zyawni3mgsnujg57vuo1vfgqfd0ca'
 API_SECRET = 'wztpxverlwwayk6qw4iclljll1rnlry7winzjrhaujqyu2ewx3e8enj5vgi6xn3j'
 
+#TMP
+LOGIN = 'TMP'
+PASSWORD = 'TMP'
+
 # If true, don't set up any orders, just say what we would do
 #DRY_RUN = True
 DRY_RUN = False
